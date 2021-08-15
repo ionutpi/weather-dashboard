@@ -1,6 +1,8 @@
 import requests
 import pandas as pd
+from datetime import timedelta
 from prefect import task, Task, Flow
+from prefect.schedules import IntervalSchedule
 
 f = open("api-key.txt","r")
 lines = f.readlines()
@@ -26,9 +28,12 @@ def process_raw_data(raw_data: dict) -> pd.DataFrame:
 
 @task 
 def process_df(df):
-    df.groupby('parameterId').mean().to_csv('data.csv')
+    df.to_csv('data.csv')
 
-with Flow("weather data") as flow:
+
+schedule = IntervalSchedule(interval=timedelta(hours=1))
+
+with Flow("weather data", schedule) as flow:
     data = read_api(url, station, period)
     df = process_raw_data(data)
     process_df(df)
