@@ -1,0 +1,32 @@
+
+version: '3.1'
+services:
+  db:
+    image: mysql:latest
+    ports:
+      - "3306:3306"
+
+    environment:
+      MYSQL_ROOT_PASSWORD: example
+      MYSQL_DATABASE: dash
+      MYSQL_USER: testuser
+      MYSQL_PASSWORD: testpassword
+
+    volumes:
+    - ./dump:/docker-entrypoint-initdb.d
+
+  prefect:
+    build: ./read-data
+    ports:
+      - 80:80    
+    depends_on:
+      - "db"
+    restart: on-failure:10
+    
+  dashboard:
+    build: ./dashboard
+    ports:
+      - "7080:7080"
+    depends_on:
+      - prefect
+    restart: on-failure:10
