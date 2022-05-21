@@ -10,12 +10,22 @@ app = dash.Dash(external_stylesheets=[dbc.themes.BOOTSTRAP])
 colors = {"background": "white", "text": "darkblue"}
 engine = create_engine('mysql+mysqlconnector://testuser:testpassword@db/dash')
 
-df = pd.read_sql_table('weather', engine)
+def degree_to_direction(degrees):
+    dirs = ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE', 'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW']
+    ix = round(degrees / (360. / len(dirs)))
+    return dirs[ix % len(dirs)]
 
-wind_data = px.data.wind()
+df = pd.read_sql_table('weather', engine).drop_duplicates()
+wind_long = df[df["parameterId"].isin(["wind_dir", "wind_speed"])]
+wind_pivot = pd.pivot(wind_long, columns=['parameterId'], values=['value'], index=['observed'])
+wind_pivot.columns = wind_pivot.columns.droplevel()
+wind_pivot["direction"] = wind_pivot["wind_dir"].map(degree_to_direction)
+wind_pivot["strength"] = pd.cut(wind_pivot["wind_speed"], bins=[0, 2, 4, 6, 8, 10, 1000], labels=['0-2', '2-4', '4-6', '6-8', '8-10', '10+'])
+wind_df = wind_pivot.groupby(["direction", "strength"]).count().reset_index()
+wind_df["frequency"] = wind_df["wind_speed"]
 
 wind_rose = px.bar_polar(
-    wind_data,
+    wind_df,
     r="frequency",
     theta="direction",
     color="strength",
